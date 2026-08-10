@@ -1,31 +1,48 @@
-#include "Adafruit_VL53L0X.h"
+#include <Adafruit_VL53L0X.h>
 #include <FastPID.h>
 
-float Kp = 1.2, Ki = 0.001, Kd = 0.05, Hz = 25;
+float Kp = 1.9, Ki = 0.001, Kd = 0.7, Hz = 45;
 int output_bits = 9;
 bool output_signed = true;
 
-FastPID myPID(Kp, Ki, Kd, Hz, output_bits, output_signed);
+FastPID myPID(Kp, Ki, Kd, Hz, output_bits, output_signed);  // for staying in center
 int output;
 
 // addresses
-#define LOX1_ADD 0x32
-#define LOX2_ADD 0x30
-#define LOX3_ADD 0x31
+#define LOX1_ADD 0x32  // left
+#define LOX2_ADD 0x30  // front
+#define LOX3_ADD 0x31  // right
 
 // shut pins
 #define SHUT1 10
 #define SHUT2 11
 #define SHUT3 12
 
+Adafruit_VL53L0X lox1 = Adafruit_VL53L0X();
+Adafruit_VL53L0X lox2 = Adafruit_VL53L0X();
+Adafruit_VL53L0X lox3 = Adafruit_VL53L0X();
+
 // distances
 int l_dist = 0;
 int f_dist = 0;
 int r_dist = 0;
 
-Adafruit_VL53L0X lox1 = Adafruit_VL53L0X();
-Adafruit_VL53L0X lox2 = Adafruit_VL53L0X();
-Adafruit_VL53L0X lox3 = Adafruit_VL53L0X();
+// global constants
+const int l_offset = 21;  // wheel width
+const int r_offset = 21;  // wheel width
+const int f_offset = 10;  // safety buffer ------------------------------------------------------------------------- test
+const int l_cal = 0;      // calibration values
+const int r_cal = 0;
+const int f_cal = 0;
+const int turn_speed = 90;    // turn speed
+const int speed_mid = 120;    // mid
+const int track_width = 250;  // track_width
+
+// global variables
+int8_t turn = 0;
+bool solve = 0;
+bool stop = 1;
+
 
 // motor
 #define motorA1 2
@@ -35,12 +52,29 @@ Adafruit_VL53L0X lox3 = Adafruit_VL53L0X();
 #define motorB2 8
 #define PWM_B 9
 
-void read_dist();
+// UI
+#define solve_button 15
+#define green_led 14
+#define stop_button 16
+#define red_led 17
+#define LED_1 18
+#define LED_2 19
+#define LED_3 20
+
+// prototypes
+void read_sensor();
+void sensor_init();
+void staight();
+void print_sensor();
 
 void setup() {
 
-  Serial.begin(115200);
-  delay(1500);
+  Serial.begin(115200);  // -----------------------------------------------------------------test-----------------------------------------------
+
+  pinMode(solve_button, INPUT_PULLUP);
+  pinMode(stop_button, INPUT_PULLUP);
+  pinMode(green_led, OUTPUT);
+  pinMode(red_led, OUTPUT);
 
   pinMode(motorA1, OUTPUT);
   pinMode(motorA2, OUTPUT);
@@ -49,113 +83,79 @@ void setup() {
   pinMode(PWM_A, OUTPUT);
   pinMode(PWM_B, OUTPUT);
 
+  pinMode(LED_1, OUTPUT);
+  pinMode(LED_2, OUTPUT);
+  pinMode(LED_3, OUTPUT);
+
   pinMode(SHUT1, OUTPUT);
   pinMode(SHUT2, OUTPUT);
   pinMode(SHUT3, OUTPUT);
 
-  digitalWrite(SHUT1, LOW);
-  digitalWrite(SHUT2, LOW);
-  digitalWrite(SHUT3, LOW);
-  delay(10);
-  digitalWrite(SHUT1, HIGH);
-  digitalWrite(SHUT2, HIGH);
-  digitalWrite(SHUT3, HIGH);
-  delay(10);
-
-  digitalWrite(SHUT2, LOW);
-  digitalWrite(SHUT3, LOW);
-  digitalWrite(SHUT1, HIGH);  // Bring Sensor 1 out of reset
-  delay(10);
-  if (!lox1.begin(LOX1_ADD)) {
-    Serial.println(F("Failed to boot first VL53L0X1"));
-    while (1)
-      ;
+  if (stop == 1) {
+    digitalWrite(red_led, HIGH);
+    digitalWrite(green_led, LOW);
   }
 
-  digitalWrite(SHUT2, HIGH);  // Bring Sensor 2 out of reset
-  delay(10);
-  if (!lox2.begin(LOX2_ADD)) {
-    Serial.println(F("Failed to boot second VL53L0X1"));
-    while (1)
-      ;
-  }
-
-  digitalWrite(SHUT3, HIGH);  // Bring Sensor 3 out of reset
-  delay(10);
-  if (!lox3.begin(LOX3_ADD)) {
-    Serial.println(F("Failed to boot third VL53L0X3"));
-    while (1)
-      ;
-  }
-
-  lox1.setMeasurementTimingBudgetMicroSeconds(20000);
-  lox2.setMeasurementTimingBudgetMicroSeconds(20000);
-  lox3.setMeasurementTimingBudgetMicroSeconds(20000);
-
-  lox1.startRangeContinuous();
-  lox2.startRangeContinuous();
-  lox3.startRangeContinuous();
-
+  sensor_init();                  // intiallizing three sensors
   myPID.setOutputRange(-50, 50);  // pid value limits
 }
 
 void loop() {
 
-  read_dist();
-  Serial.print(l_dist);
-  Serial.print(" ");
-  Serial.print(f_dist);
-  Serial.print(" ");
-  Serial.println(r_dist);
+  read_sensor();
+  print_sensor();
 
-  if (f_dist > 120) {
-    output = myPID.step(0, l_dist - r_dist);
-    if (output > 0) {
-      digitalWrite(motorA1, HIGH);
-      digitalWrite(motorA2, LOW);
-      analogWrite(PWM_A, 90 + output);
-      digitalWrite(motorB1, HIGH);
-      digitalWrite(motorB2, LOW);
-      analogWrite(PWM_B, 90 - output);
-    }
-    if (output < 0) {
-      digitalWrite(motorA1, HIGH);
-      digitalWrite(motorA2, LOW);
-      analogWrite(PWM_A, 90 - (-output));
-      digitalWrite(motorB1, HIGH);
-      digitalWrite(motorB2, LOW);
-      analogWrite(PWM_B, 90 + (-output));
-    }
-  } else {
-    if (l_dist > 370) {
-      digitalWrite(motorA1, HIGH);
-      digitalWrite(motorA2, LOW);
-      analogWrite(PWM_A, 110);
-      digitalWrite(motorB1, HIGH);
-      digitalWrite(motorB2, LOW);
-      analogWrite(PWM_B, 0);
-  
-    }
-    else if(r_dist > 370){
-      digitalWrite(motorA1, HIGH);
-      digitalWrite(motorA2, LOW);
-      analogWrite(PWM_A, 0);
-      digitalWrite(motorB1, HIGH);
-      digitalWrite(motorB2, LOW);
-      analogWrite(PWM_B, 110);
-    }
+  if (digitalRead(solve_button) == LOW && solve != 1) {
+    digitalWrite(green_led, HIGH);
+    digitalWrite(red_led, LOW);
+    delay(2000);
+    solve = 1;
+    stop = 0;
   }
-}
 
-void read_dist() {
+  if (solve) {
+    if (digitalRead(stop_button) == LOW) {
+      solve = 0;
+      stop = 1;
+      while (stop) {
+        digitalWrite(red_led, HIGH);
+        digitalWrite(green_led, LOW);
+        digitalWrite(PWM_B, 0);
+        digitalWrite(PWM_A, 0);
+        if (digitalRead(solve_button) == LOW && solve != 1) {
+          digitalWrite(red_led, LOW);
+          digitalWrite(green_led, HIGH);
+          delay(2000);
+          solve = 1;
+          stop = 0;
+        }
+      }
+    }
 
-  if (lox1.isRangeComplete()) {
-    l_dist = lox1.readRange();
-  }
-  if (lox2.isRangeComplete()) {
-    f_dist = lox2.readRange();
-  }
-  if (lox3.isRangeComplete()) {
-    r_dist = lox3.readRange();
+    switch (turn) {
+      case 0:
+        digitalWrite(LED_1, LOW);
+        digitalWrite(LED_2, HIGH);
+        digitalWrite(LED_3, LOW);
+        break;
+
+      case 1:
+        
+        break;
+
+      case -1:
+       
+        break;
+
+      case 2:
+       
+        break;
+
+      case -2:
+        digitalWrite(LED_1, HIGH);
+        digitalWrite(LED_2, LOW);
+        digitalWrite(LED_3, LOW);
+        break;
+    }
   }
 }
