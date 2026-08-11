@@ -30,7 +30,7 @@ int r_dist = 0;
 // global constants
 const int l_offset = 21;  // wheel width
 const int r_offset = 21;  // wheel width
-const int f_offset = 10;  // safety buffer ------------------------------------------------------------------------- test
+const int f_offset = 10;  // safety buffer
 const int l_cal = 0;      // calibration values
 const int r_cal = 0;
 const int f_cal = 0;
@@ -64,7 +64,7 @@ bool stop = 1;
 // prototypes
 void read_sensor();
 void sensor_init();
-void staight();
+void straight_without_pid();
 void print_sensor();
 
 void setup() {
@@ -95,7 +95,6 @@ void setup() {
     digitalWrite(red_led, HIGH);
     digitalWrite(green_led, LOW);
   }
-
   sensor_init();                  // intiallizing three sensors
   myPID.setOutputRange(-50, 50);  // pid value limits
 }
@@ -131,31 +130,6 @@ void loop() {
         }
       }
     }
-
-    switch (turn) {
-      case 0:
-        digitalWrite(LED_1, LOW);
-        digitalWrite(LED_2, HIGH);
-        digitalWrite(LED_3, LOW);
-        break;
-
-      case 1:
-        
-        break;
-
-      case -1:
-       
-        break;
-
-      case 2:
-       
-        break;
-
-      case -2:
-        digitalWrite(LED_1, HIGH);
-        digitalWrite(LED_2, LOW);
-        digitalWrite(LED_3, LOW);
-        break;
-    }
+    straight_without_pid();
   }
 }
