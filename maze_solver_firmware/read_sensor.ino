@@ -9,7 +9,7 @@ void read_sensor() {
   if (lox2.isRangeComplete()) {
     f_dist = lox2.readRange() + f_cal - f_offset;
   }
-  if ((r_dist < 120 && l_dist < 120) && (f_dist > track_width + 50)) {  // 120 = (track_width - bot_width(including wheels))/2 + 60 (buffer for diagonal sections)
+  if ((r_dist < 120 && l_dist < 120) && (f_dist > track_width + 60)) {  // 120 = (track_width - bot_width(including wheels))/2 + 60 (buffer for diagonal sections)
     turn = 0;                                                           // straight with feed back
     digitalWrite(LED_1, LOW);
     digitalWrite(LED_2, HIGH);
@@ -24,7 +24,7 @@ void read_sensor() {
     digitalWrite(LED_1, LOW);
     digitalWrite(LED_2, LOW);
     digitalWrite(LED_3, HIGH);
-  } else if (f_dist < track_width + 50) {  // 60 (buffer for diagonal sections)
+  } else if (f_dist < track_width + 60) {  // 60 (buffer for diagonal sections)
     turn = 2;                              // straight without pid
     digitalWrite(LED_1, HIGH);
     digitalWrite(LED_2, HIGH);

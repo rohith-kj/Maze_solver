@@ -34,9 +34,9 @@ const int f_offset = 10;  // safety buffer
 const int l_cal = 0;      // calibration values
 const int r_cal = 0;
 const int f_cal = 0;
-const int turn_speed = 90;  // turn speed
-const int speed = 120;      // max speed -  180
-const int straight_speed = 90;
+const int turn_speed = 90;      // turn speed
+const int speed = 120;          // max speed -  180
+const int straight_speed = 90;  // without pid
 const int motorA_cal = 0;
 const int motorB_cal = 2;
 const int track_width = 250;  // track_width
@@ -69,8 +69,9 @@ int diff = 0;
 void read_sensor();
 void sensor_init();
 void print_sensor();
-void straight_without_pid();
+void straight_without_pid(bool dir, int spid);
 void straight();
+void bend(int dir);
 
 // CORE 0 : for solving
 void setup() {
@@ -108,7 +109,6 @@ void setup() {
 void loop() {
 
   read_sensor();
-
   if (digitalRead(solve_button) == LOW && solve != 1) {
     digitalWrite(green_led, HIGH);
     digitalWrite(red_led, LOW);
@@ -135,6 +135,12 @@ void loop() {
         }
       }
     }
-    straight();
+    if (turn == 0) {
+      straight();
+    } else if (turn == 2) {
+      straight_without_pid(1, straight_speed);
+    } else if (turn == -1 || turn == 1) {
+      bend(turn);
+    }
   }
 }
