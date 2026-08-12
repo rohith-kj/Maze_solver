@@ -48,13 +48,3 @@ void sensor_init() {
   digitalWrite(LED_3, LOW);
 }
 
-void print_sensor() {
-  
-  Serial.print(l_dist);
-  Serial.print(" ");
-  Serial.print(f_dist);
-  Serial.print(" ");
-  Serial.print(r_dist);
-  Serial.print(" ");
-  Serial.println(turn);
-}

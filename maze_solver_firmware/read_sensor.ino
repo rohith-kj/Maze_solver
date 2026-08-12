@@ -14,11 +14,6 @@ void read_sensor() {
     digitalWrite(LED_1, LOW);
     digitalWrite(LED_2, HIGH);
     digitalWrite(LED_3, LOW);
-  } else if ((r_dist < 120 && l_dist < 120) && (f_dist < track_width + 50)) {  // 120 = (track_width - bot_width(including wheels))/2 + 60 (buffer for diagonal sections)
-    turn = 2;                                                                  // straight without pid
-    digitalWrite(LED_1, HIGH);
-    digitalWrite(LED_2, HIGH);
-    digitalWrite(LED_3, HIGH);
   } else if (l_dist > track_width && f_dist < track_width - 50) {
     turn = -1;  // left turn
     digitalWrite(LED_1, HIGH);
@@ -29,5 +24,20 @@ void read_sensor() {
     digitalWrite(LED_1, LOW);
     digitalWrite(LED_2, LOW);
     digitalWrite(LED_3, HIGH);
+  } else if (f_dist < track_width + 50) {  // 60 (buffer for diagonal sections)
+    turn = 2;                              // straight without pid
+    digitalWrite(LED_1, HIGH);
+    digitalWrite(LED_2, HIGH);
+    digitalWrite(LED_3, HIGH);
   }
+}
+void print_sensor() {
+
+  Serial.print(l_dist);
+  Serial.print(" ");
+  Serial.print(f_dist);
+  Serial.print(" ");
+  Serial.print(r_dist);
+  Serial.print(" ");
+  Serial.println(turn);
 }

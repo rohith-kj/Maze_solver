@@ -1,7 +1,7 @@
 #include <Adafruit_VL53L0X.h>
 #include <FastPID.h>
 
-float Kp = 1.9, Ki = 0.001, Kd = 0.7, Hz = 45;
+float Kp = 1.45, Ki = 0.001, Kd = 0.025, Hz = 45;
 int output_bits = 9;
 bool output_signed = true;
 
@@ -34,14 +34,18 @@ const int f_offset = 10;  // safety buffer
 const int l_cal = 0;      // calibration values
 const int r_cal = 0;
 const int f_cal = 0;
-const int turn_speed = 90;    // turn speed
-const int speed_mid = 120;    // mid
+const int turn_speed = 90;  // turn speed
+const int speed = 120;      // max speed -  180
+const int straight_speed = 90;
+const int motorA_cal = 0;
+const int motorB_cal = 2;
 const int track_width = 250;  // track_width
 
 // global variables
 int8_t turn = 0;
 bool solve = 0;
 bool stop = 1;
+int diff = 0;
 
 
 // motor
@@ -64,9 +68,11 @@ bool stop = 1;
 // prototypes
 void read_sensor();
 void sensor_init();
-void straight_without_pid();
 void print_sensor();
+void straight_without_pid();
+void straight();
 
+// CORE 0 : for solving
 void setup() {
 
   Serial.begin(115200);  // -----------------------------------------------------------------test-----------------------------------------------
@@ -96,13 +102,12 @@ void setup() {
     digitalWrite(green_led, LOW);
   }
   sensor_init();                  // intiallizing three sensors
-  myPID.setOutputRange(-50, 50);  // pid value limits
+  myPID.setOutputRange(-75, 75);  // pid value limits
 }
 
 void loop() {
 
   read_sensor();
-  print_sensor();
 
   if (digitalRead(solve_button) == LOW && solve != 1) {
     digitalWrite(green_led, HIGH);
@@ -130,6 +135,6 @@ void loop() {
         }
       }
     }
-    straight_without_pid();
+    straight();
   }
 }
